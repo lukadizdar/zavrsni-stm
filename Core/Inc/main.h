@@ -53,13 +53,15 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void strip_crlf(char *str);
+void LED_Checking();
+void UART_String_Handling();
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
 
 /* USER CODE BEGIN Private defines */
-
+#define RX_BUFFER_SIZE 64
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

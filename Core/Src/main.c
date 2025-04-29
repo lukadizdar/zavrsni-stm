@@ -35,7 +35,7 @@
 
 /* Private define ------------------------------------------------------------*/
 /* USER CODE BEGIN PD */
-#define UART1_SIZE 64
+#define RX_BUFFER_SIZE 64
 /* USER CODE END PD */
 
 /* Private macro -------------------------------------------------------------*/
@@ -46,9 +46,15 @@
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
-char tx_buffer[UART1_SIZE];
-char rx_buffer[UART1_SIZE];
+char tx_buffer[RX_BUFFER_SIZE];
+char rx_buffer[RX_BUFFER_SIZE];
+char string_buffer[RX_BUFFER_SIZE];
+
+volatile uint32_t NewReceivedChars;
+volatile uint8_t cnt = 0;
 volatile uint8_t uart_tx_done = 0;
+volatile uint8_t rx_event = 0;
+volatile uint8_t last_size = 0;
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
@@ -85,7 +91,6 @@ int main(void)
   SystemClock_Config();
 
   /* USER CODE BEGIN SysInit */
-
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
@@ -93,14 +98,10 @@ int main(void)
   MX_DMA_Init();
   MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
-  sprintf(tx_buffer, "AT\r\n");
-  uint8_t str_length = strlen(tx_buffer);
-  HAL_UART_Receive_DMA(&huart1, (uint8_t*)rx_buffer, 4);
-  char msg[] = "Hello world!\r\n";
-  HAL_UART_Transmit_DMA(&huart1, (uint8_t*)msg, strlen(msg));
-  /*if (HAL_UART_Transmit_DMA(&huart1, (uint8_t*)tx_buffer, str_length) != HAL_OK) {
-	  Error_Handler();
-  }*/
+  HAL_UARTEx_ReceiveToIdle_DMA(&huart1, (uint8_t*)rx_buffer, RX_BUFFER_SIZE);
+  __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_HT);
+  __HAL_DMA_DISABLE_IT(huart1.hdmarx, DMA_IT_TC);
+  HAL_Send_AT_Message("AT+CIFSR\r\n");
 
   /* USER CODE END 2 */
 
@@ -108,18 +109,22 @@ int main(void)
   /* USER CODE BEGIN WHILE */
   while (1)
   {
+	  if (rx_event == 1) {
+		  rx_event = 0;
+		  UART_String_Handling();
+		  char result[RX_BUFFER_SIZE];
 
+		  strcpy(result, "Luka says: ");
+		  strcat(result, string_buffer);
+		  HAL_UART_Transmit_DMA(&huart1, (uint8_t*)result, strlen(result));
 
-	  for (uint8_t i=0; i<UART1_SIZE; i++) {
-	  		  if (rx_buffer[i] != 0) {
-	  			  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_13, 1);
-	  		  }
-	  	  }
-
+	  }
+	  LED_Checking();
 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+
   }
   /* USER CODE END 3 */
 }
@@ -177,11 +182,73 @@ void HAL_UART_TxCpltCallback(UART_HandleTypeDef *huart) {
 	}
 }
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart) {
-	if (huart->Instance == USART1) {
-		HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, 1);
-	}
+void UART_String_Handling() {
+	if (cnt != last_size) {
+			if (cnt > last_size) {
+				NewReceivedChars = cnt - last_size;
+				memset(string_buffer,0,RX_BUFFER_SIZE);
+					for (uint8_t i=0; i < NewReceivedChars; i++) {
+						string_buffer[i] = rx_buffer[i+last_size];
+					}
+
+			}
+			else {
+				NewReceivedChars = RX_BUFFER_SIZE - last_size;
+			      for (uint8_t i = 0; i < NewReceivedChars; i++)
+			      {
+			        string_buffer[i] = rx_buffer[last_size + i];
+			      }
+			      if (cnt > 0) {
+			    	  for (uint8_t i = 0; i < cnt; i++)
+			    	  {
+			    	    string_buffer[NewReceivedChars + i] = rx_buffer[i];
+			    	  }
+			    	  NewReceivedChars += cnt;
+			      }
+			}
+
+		}
+		//strip_crlf(string_buffer);
+		last_size = cnt;
 }
+
+
+
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size) {
+	rx_event = 1;
+	cnt = Size;
+}
+
+void LED_Checking() {
+	  if (strstr(string_buffer, "OK") != NULL) {
+		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_SET);
+	  }
+	  else if (strstr(string_buffer, "ERROR") != NULL) {
+		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_SET);
+	  }
+	  else {
+		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_14, GPIO_PIN_RESET);
+		  HAL_GPIO_WritePin(GPIOD, GPIO_PIN_12, GPIO_PIN_RESET);
+	  }
+}
+
+
+void strip_crlf(char *str) {
+    size_t len = strlen(str);
+    while (len > 0 && (str[len - 1] == '\r' || str[len - 1] == '\n')) {
+        str[--len] = '\0';
+    }
+}
+
+void HAL_Send_AT_Message(char* buffer) {
+	  sprintf(tx_buffer, buffer);
+	  HAL_UART_Transmit_DMA(&huart1, (uint8_t*)tx_buffer, strlen(tx_buffer));
+}
+
+
+
 /* USER CODE END 4 */
 
 /**
