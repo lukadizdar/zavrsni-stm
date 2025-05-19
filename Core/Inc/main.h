@@ -61,7 +61,27 @@ void UART_String_Handling();
 /* Private defines -----------------------------------------------------------*/
 
 /* USER CODE BEGIN Private defines */
-#define RX_BUFFER_SIZE 64
+#define RX_BUFFER_CH1_SIZE 256
+#define RX_BUFFER_CH2_SIZE 256
+#define HAL_NODISPLAY 0
+#define HAL_YESDISPLAY 1
+#define HAL_PHASE_SETUP 0
+#define HAL_PHASE_SENSOR 1
+#define HAL_RX_INITIALIZED 0
+#define HAL_RX_SETUP_START 1
+#define HAL_RX_SENSOR_START 2
+
+
+extern char tx_buffer_ch1[RX_BUFFER_CH1_SIZE];
+extern char tx_buffer_ch2[RX_BUFFER_CH2_SIZE];
+extern char rx_buffer_ch1[RX_BUFFER_CH1_SIZE];
+extern char string_buffer_1[RX_BUFFER_CH1_SIZE];
+extern char rx_buffer_ch2[RX_BUFFER_CH2_SIZE];
+extern char string_buffer_1[RX_BUFFER_CH1_SIZE];
+extern char string_buffer_2[RX_BUFFER_CH2_SIZE];
+
+
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

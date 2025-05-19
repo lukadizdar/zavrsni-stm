@@ -1,0 +1,2 @@
+../Core/Src/uart_strings.c:16:6:UART_String_Handling_CH1	16	static
+../Core/Src/uart_strings.c:45:6:UART_String_Handling_CH2	16	static
